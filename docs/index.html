@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Which pages should editors review first? A position-adjusted CTR opportunity score</title>
+<meta name="description" content="A research paper on ranking content for click-through-rate review using position-adjusted expected CTR, client-grouped validation and honest baselines. Built on the FlyRank ML Internship dataset.">
+<meta property="og:title" content="Which pages should editors review first? A position-adjusted CTR opportunity score">
+<meta property="og:description" content="Decision-support research: a transparent ranked review queue for pages that under-capture search clicks. A Decision Tree did not beat the simple baseline.">
+<meta property="og:type" content="article">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,600;7..72,700&family=Public+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#ffffff;--panel:#f3f6f9;--ink:#14213d;--muted:#52607a;--line:#d8e0e8;--accent:#0b6e99;--accent2:#e39b2d;--bar:#9db8c8;--hl:#0b6e99;--link:#0a5f85;--note:#fff6e6;--notebd:#f0cf8f}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1621;--panel:#152233;--ink:#e6edf5;--muted:#9aa9bc;--line:#26364a;--accent:#4fb3e0;--accent2:#f0b454;--bar:#476177;--hl:#4fb3e0;--link:#7cc8ec;--note:#2a2415;--notebd:#6d5a2b}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.65 "Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+a{color:var(--link);text-underline-offset:3px}
+a:focus-visible,summary:focus-visible{outline:3px solid var(--accent2);outline-offset:3px;border-radius:3px}
+.skip{position:absolute;left:-999px;top:8px;background:var(--ink);color:var(--bg);padding:8px 12px;border-radius:6px;z-index:10}
+.skip:focus{left:8px}
+header.top{border-bottom:1px solid var(--line);background:var(--panel)}
+.bar-in{max-width:1040px;margin:0 auto;padding:12px 24px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
+.bar-in strong{color:var(--ink)}
+.hero{max-width:1040px;margin:0 auto;padding:56px 24px 32px;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:40px;align-items:center}
+h1,h2,h3{font-family:Literata,Georgia,"Times New Roman",serif;line-height:1.2;letter-spacing:-.01em}
+h1{font-size:clamp(30px,4.6vw,46px);margin:0 0 16px;font-weight:700}
+.dek{font-size:19px;color:var(--muted);margin:0 0 20px}
+.byline{font-size:15px;color:var(--muted);margin:0 0 22px}
+.byline strong{color:var(--ink)}
+.glance{margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.glance div{border-left:3px solid var(--accent);padding:2px 0 2px 12px}
+.glance dt{font-size:13px;color:var(--muted)}
+.glance dd{margin:0;font-weight:700;font-size:20px;font-family:Literata,Georgia,serif}
+figure.hero-fig{margin:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 14px 10px}
+figure.hero-fig figcaption{font-size:14px;color:var(--muted);padding:6px 6px 4px}
+main{max-width:760px;margin:0 auto;padding:8px 24px 72px}
+nav.toc{max-width:1040px;margin:0 auto;padding:0 24px 8px;font-size:14px}
+nav.toc ul{list-style:none;display:flex;flex-wrap:wrap;gap:6px 18px;margin:0;padding:12px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+section{padding-top:40px}
+h2{font-size:28px;margin:0 0 14px;scroll-margin-top:16px}
+h3{font-size:20px;margin:28px 0 8px}
+p{margin:0 0 16px}
+ul,ol{padding-left:22px;margin:0 0 16px}
+li{margin-bottom:8px}
+code{font:14px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--panel);padding:1px 6px;border-radius:4px}
+.abstract{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px 24px;margin-top:8px}
+.abstract h2{font-size:22px;margin-top:0}
+.abstract p{margin:0}
+.wide{margin-left:-80px;margin-right:-80px}
+@media (max-width:960px){.wide{margin-left:0;margin-right:0}.hero{grid-template-columns:1fr;gap:28px;padding-top:36px}}
+figure{margin:24px 0}
+figure.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 14px 8px}
+figcaption{font-size:14.5px;color:var(--muted);padding:8px 6px 4px}
+figcaption strong{color:var(--ink)}
+svg.chart{width:100%;height:auto;display:block}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .tick{font:12px system-ui,sans-serif;fill:var(--muted)}
+.chart .axis{font:12px system-ui,sans-serif;fill:var(--muted)}
+.chart .lab{font:13px system-ui,sans-serif;fill:var(--ink)}
+.chart .sub{font:12px system-ui,sans-serif;fill:var(--muted)}
+.chart .val{font:600 13px system-ui,sans-serif;fill:var(--ink)}
+.chart .bar{fill:var(--bar)}
+.chart .bar.hl{fill:var(--hl)}
+.chart .err{stroke:var(--ink);stroke-width:1.5}
+.tablewrap{overflow-x:auto;margin:16px 0 20px;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:15px;min-width:520px}
+caption{text-align:left;font-size:14.5px;color:var(--muted);padding:10px 12px;caption-side:bottom}
+th,td{padding:9px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal}
+thead th{background:var(--panel);font-weight:700}
+tbody tr:last-child td{border-bottom:0}
+tr.best td{font-weight:700}
+.callout{background:var(--note);border:1px solid var(--notebd);border-left:5px solid var(--accent2);border-radius:8px;padding:14px 18px;margin:20px 0}
+.callout p:last-child{margin:0}
+.callout strong{display:block;margin-bottom:4px}
+.steps li{padding-left:4px}
+footer{border-top:1px solid var(--line);background:var(--panel);font-size:14.5px;color:var(--muted)}
+footer .in{max-width:760px;margin:0 auto;padding:24px}
+@media (max-width:560px){body{font-size:16px}.glance{grid-template-columns:1fr}h2{font-size:25px}main,nav.toc,.hero,.bar-in{padding-left:18px;padding-right:18px}}
+@media print{header.top,nav.toc,.skip{display:none}.hero{padding-top:8px}section{break-inside:avoid-page}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the paper</a>
+<header class="top"><div class="bar-in"><span><strong>Research paper</strong> · FlyRank ML Internship capstone</span><span>Decision-support research · October 2026</span></div></header>
+
+<div class="hero">
+  <div>
+    <h1>Which pages should editors review first? A position-adjusted CTR opportunity score</h1>
+    <p class="dek">Pages in the same search position should win similar shares of clicks. This paper ranks the pages that fall furthest below that share, and tests whether a Decision Tree can do better than a plain rule.</p>
+    <p class="byline"><strong>Gunjann</strong> · FlyRank ML Internship capstone · Lane: CTR / Engagement Opportunity Scoring</p>
+    <dl class="glance">
+      <div><dt>Pages scored</dt><dd>16,726</dd></div>
+      <div><dt>Clients (anonymized)</dt><dd>28</dd></div>
+      <div><dt>Decision Tree vs. simple rule</dt><dd>No reliable gain</dd></div>
+      <div><dt>Stability of the gaps over time</dt><dd>ρ = 0.60</dd></div>
+    </dl>
+  </div>
+  <figure class="hero-fig">
+    <svg viewBox="0 0 500 320" role="img" aria-label="Bar chart of impression-weighted click-through rate by average position group: 0.489 percent for positions 1 to 3, 0.348 for 4 to 10, 0.351 for 11 to 20, and 0.150 for 21 and beyond." class="chart">
+<line x1="64" x2="484" y1="258.0" y2="258.0" class="grid"/>
+<text x="56" y="262.0" class="tick" text-anchor="end">0</text>
+<line x1="64" x2="484" y1="219.7" y2="219.7" class="grid"/>
+<text x="56" y="223.7" class="tick" text-anchor="end">0.1</text>
+<line x1="64" x2="484" y1="181.3" y2="181.3" class="grid"/>
+<text x="56" y="185.3" class="tick" text-anchor="end">0.2</text>
+<line x1="64" x2="484" y1="143.0" y2="143.0" class="grid"/>
+<text x="56" y="147.0" class="tick" text-anchor="end">0.3</text>
+<line x1="64" x2="484" y1="104.7" y2="104.7" class="grid"/>
+<text x="56" y="108.7" class="tick" text-anchor="end">0.4</text>
+<line x1="64" x2="484" y1="66.3" y2="66.3" class="grid"/>
+<text x="56" y="70.3" class="tick" text-anchor="end">0.5</text>
+<line x1="64" x2="484" y1="28.0" y2="28.0" class="grid"/>
+<text x="56" y="32.0" class="tick" text-anchor="end">0.6</text>
+<text x="14" y="143.0" class="axis" text-anchor="middle" transform="rotate(-90 14 143.0)">Impression-weighted CTR (%)</text>
+<rect x="90.0" y="70.5" width="72.5" height="187.5" rx="3" class="bar"/>
+<text x="126.2" y="63.5" class="val" text-anchor="middle">0.489%</text>
+<text x="126.2" y="278" class="lab" text-anchor="middle">1–3</text>
+<text x="126.2" y="296" class="sub" text-anchor="middle">480 pages</text>
+<rect x="188.5" y="124.6" width="72.5" height="133.4" rx="3" class="bar hl"/>
+<text x="224.8" y="117.6" class="val" text-anchor="middle">0.348%</text>
+<text x="224.8" y="278" class="lab" text-anchor="middle">4–10</text>
+<text x="224.8" y="296" class="sub" text-anchor="middle">7,084 pages</text>
+<rect x="287.0" y="123.5" width="72.5" height="134.5" rx="3" class="bar hl"/>
+<text x="323.2" y="116.5" class="val" text-anchor="middle">0.351%</text>
+<text x="323.2" y="278" class="lab" text-anchor="middle">11–20</text>
+<text x="323.2" y="296" class="sub" text-anchor="middle">4,459 pages</text>
+<rect x="385.5" y="200.5" width="72.5" height="57.5" rx="3" class="bar"/>
+<text x="421.8" y="193.5" class="val" text-anchor="middle">0.150%</text>
+<text x="421.8" y="278" class="lab" text-anchor="middle">21+</text>
+<text x="421.8" y="296" class="sub" text-anchor="middle">4,703 pages</text>
+<text x="274.0" y="312" class="axis" text-anchor="middle">Average position group</text>
+</svg>
+    <figcaption><strong>Figure 1.</strong> Observed CTR by average-position group, pages with at least 500 impressions. Position helps, but positions 4–10 and 11–20 are almost identical.</figcaption>
+  </figure>
+</div>
+
+<nav class="toc" aria-label="Sections"><ul>
+<li><a href="#abstract">Abstract</a></li><li><a href="#intro">Introduction</a></li><li><a href="#data">Data</a></li><li><a href="#method">Methodology</a></li><li><a href="#results">Results</a></li><li><a href="#limits">Limitations</a></li><li><a href="#recs">Recommendations</a></li><li><a href="#repro">Reproducibility</a></li><li><a href="#credit">Acknowledgments</a></li>
+</ul></nav>
+
+<main id="main">
+
+<section id="abstract" style="padding-top:8px">
+<div class="abstract">
+<h2>Abstract</h2>
+<p>This study asks which content pages under-capture search clicks and deserve review first. It uses an anonymized 30,000-page, 32-client slice with 90-day search and engagement signals, filtered to 16,726 pages from 28 clients that have at least 500 impressions and a valid position. Observed click-through rate (CTR) is compared with the expected CTR for each page’s position group, and a Decision Tree is compared with two simple baselines on client-grouped splits. The Decision Tree did not reliably beat the position-tier baseline, so a transparent opportunity score drives a ranked review queue with reason codes and suggested actions. The output is observational decision-support for editorial prioritization and does not establish causal effects.</p>
+</div>
+</section>
+
+<section id="intro">
+<h2>1. Introduction and problem statement</h2>
+<p>Editors have limited time and far more pages than they can inspect. A page that ranks well and is seen often, but is rarely clicked, may need a closer look at its title, snippet or intent match. A page that is rarely seen at all usually does not.</p>
+<p>The decision this work supports is simple: <strong>which content should be reviewed first.</strong> A useful output is a ranked queue with an opportunity score, plain reason codes for why a page is on the list, and a suggested next action. Comparing raw CTR across pages is misleading, because a page at position 2 always earns more clicks than a page at position 9. The score therefore compares each page with other pages in the same position group.</p>
+<p>This project does <strong>not</strong> try to uncover how Google ranks pages, and it does not claim that updating a page causes better performance.</p>
+</section>
+
+<section id="data">
+<h2>2. Data</h2>
+<p>Results use the anonymized FlyRank ML Internship starter file <code>content_refresh_anonymized.csv</code>: one row per page, 30,000 pages, 44 columns, 32 pseudonymized clients. All activity totals cover a trailing 90-day window ending at export time. A persistence check compares the most recent 30 days with the 30 days before. Earlier course work inspected the warehouse table <code>fact_content_daily_performance</code> (78,835,655 rows; 9,841,378 for March 2026) for context, but every number in this paper comes from the 30,000-row slice.</p>
+<div class="tablewrap"><table>
+<caption>How the analysis population was formed.</caption>
+<thead><tr><th>Step</th><th>Pages</th><th>Clients</th></tr></thead>
+<tbody>
+<tr><td>Starting slice</td><td>30,000</td><td>32</td></tr>
+<tr><td>Remove pages with no position data or fewer than 500 impressions in 90 days</td><td>−13,274</td><td></td></tr>
+<tr class="best"><td>Analysis population</td><td>16,726</td><td>28</td></tr>
+</tbody></table></div>
+<h3>What was excluded, and why</h3>
+<ul>
+<li><strong>No position data.</strong> An <code>avg_position</code> of 0 means “no position data,” not position zero. All 1,205 such rows were removed, because they would otherwise be mixed into the top position group.</li>
+<li><strong>Tiny pages.</strong> Pages with fewer than 500 impressions have noisy CTR; for example, the highest raw CTRs in the slice come from pages with one impression and one click (100%).</li>
+<li><strong>Identifying information.</strong> No client names, domains, URLs, private queries or raw exports are used. Client and page identifiers are pseudonyms, used only to group data for validation, never as features.</li>
+</ul>
+<p>CTR in this dataset is already a percentage (0.76 means 0.76%). Keyword and length fields are missing along content-type lines (for example, one content type has no keyword data), so missing values were handled with median imputation plus “was missing” flags rather than filling with zero.</p>
+</section>
+
+<section id="method">
+<h2>3. Methodology</h2>
+<h3>Expected CTR and the opportunity score</h3>
+<p>Pages are placed into four groups by average position: 1–3, 4–10, 11–20 and 21+. A page’s <em>expected CTR</em> is the median CTR of its group. Its <em>missed clicks</em> are the clicks it would have received at that expected CTR, minus its actual clicks, floored at zero. Pages are ranked by missed clicks, so large pages with a large gap rise to the top.</p>
+<h3>Target, features and baselines</h3>
+<p>For the model comparison the target is observed CTR (percent). There is no hand-made label. Features are average position, search volume, keyword competition, cost-per-click, word count, character count, content type and search intent. Clicks, impression counts, <code>trend_direction</code>, <code>trend_pct</code> and all identifiers are left out of the features, and a code check stops the run if CTR, clicks, trend fields or identifiers slip in. Three predictors are compared on the same data and metric:</p>
+<ol>
+<li><strong>Baseline 1:</strong> the global median CTR for every page.</li>
+<li><strong>Baseline 2:</strong> the median CTR of the page’s position group, learned from training clients only.</li>
+<li><strong>Decision Tree:</strong> depth 4, at least 100 pages per leaf, seed 42.</li>
+</ol>
+<h3>Validation design and leakage checks</h3>
+<p>Every comparison is <strong>grouped by client</strong>: no client appears in both training and test data. The main evaluation holds out 6 clients (1,260 pages) and trains on 22 (15,466 pages). A 5-fold grouped cross-validation checks how much the result depends on which clients are held out. Success is measured by mean absolute error (MAE, in CTR percentage points; lower is better), R², and Spearman rank correlation, which matters most for a ranked queue.</p>
+<p>Because CTR is itself clicks divided by impressions, those columns were kept out of the features so the model must learn from context, not recompute the target.</p>
+</section>
+
+<section id="results">
+<h2>4. Results</h2>
+<h3>Model versus baselines</h3>
+<figure class="card wide">
+<svg viewBox="0 0 640 340" role="img" aria-label="Grouped bar chart of mean absolute error for three models on one client-grouped split and across five client-grouped folds. The Decision Tree does not beat the position-tier baseline." class="chart">
+<line x1="64" x2="624" y1="270.0" y2="270.0" class="grid"/>
+<text x="56" y="274.0" class="tick" text-anchor="end">0.00</text>
+<line x1="64" x2="624" y1="231.7" y2="231.7" class="grid"/>
+<text x="56" y="235.7" class="tick" text-anchor="end">0.05</text>
+<line x1="64" x2="624" y1="193.3" y2="193.3" class="grid"/>
+<text x="56" y="197.3" class="tick" text-anchor="end">0.10</text>
+<line x1="64" x2="624" y1="155.0" y2="155.0" class="grid"/>
+<text x="56" y="159.0" class="tick" text-anchor="end">0.15</text>
+<line x1="64" x2="624" y1="116.7" y2="116.7" class="grid"/>
+<text x="56" y="120.7" class="tick" text-anchor="end">0.20</text>
+<line x1="64" x2="624" y1="78.3" y2="78.3" class="grid"/>
+<text x="56" y="82.3" class="tick" text-anchor="end">0.25</text>
+<line x1="64" x2="624" y1="40.0" y2="40.0" class="grid"/>
+<text x="56" y="44.0" class="tick" text-anchor="end">0.30</text>
+<text x="14" y="155.0" class="axis" text-anchor="middle" transform="rotate(-90 14 155.0)">MAE (CTR percentage points)</text>
+<rect x="108.3" y="70.0" width="46" height="200.0" rx="3" class="bar"/>
+<text x="131.3" y="63.0" class="val" text-anchor="middle">0.261</text>
+<rect x="160.3" y="115.2" width="46" height="154.8" rx="3" class="bar hl"/>
+<text x="183.3" y="82.4" class="val" text-anchor="middle">0.202</text>
+<line x1="183.3" x2="183.3" y1="90.4" y2="140.0" class="err"/>
+<line x1="177.3" x2="189.3" y1="90.4" y2="90.4" class="err"/>
+<line x1="177.3" x2="189.3" y1="140.0" y2="140.0" class="err"/>
+<text x="157.3" y="290" class="lab" text-anchor="middle">Global median</text>
+<rect x="295.0" y="77.0" width="46" height="193.0" rx="3" class="bar"/>
+<text x="318.0" y="70.0" class="val" text-anchor="middle">0.252</text>
+<rect x="347.0" y="120.6" width="46" height="149.4" rx="3" class="bar hl"/>
+<text x="370.0" y="90.1" class="val" text-anchor="middle">0.195</text>
+<line x1="370.0" x2="370.0" y1="98.1" y2="143.0" class="err"/>
+<line x1="364.0" x2="376.0" y1="98.1" y2="98.1" class="err"/>
+<line x1="364.0" x2="376.0" y1="143.0" y2="143.0" class="err"/>
+<text x="344.0" y="290" class="lab" text-anchor="middle">Position-tier median</text>
+<rect x="481.7" y="77.3" width="46" height="192.7" rx="3" class="bar"/>
+<text x="504.7" y="70.3" class="val" text-anchor="middle">0.251</text>
+<rect x="533.7" y="109.9" width="46" height="160.1" rx="3" class="bar hl"/>
+<text x="556.7" y="90.3" class="val" text-anchor="middle">0.209</text>
+<line x1="556.7" x2="556.7" y1="98.3" y2="121.5" class="err"/>
+<line x1="550.7" x2="562.7" y1="98.3" y2="98.3" class="err"/>
+<line x1="550.7" x2="562.7" y1="121.5" y2="121.5" class="err"/>
+<text x="530.7" y="290" class="lab" text-anchor="middle">Decision Tree</text>
+<rect x="68" y="314" width="12" height="12" rx="2" class="bar"/><text x="86" y="324" class="sub">One held-out split (6 clients)</text>
+<rect x="298" y="314" width="12" height="12" rx="2" class="bar hl"/><text x="316" y="324" class="sub">5-fold average, whiskers = ±1 std</text>
+</svg>
+<figcaption><strong>Figure 2.</strong> Average error of each predictor. Knowing the position group helps a little over one global guess; the Decision Tree ties the position rule on one split and is slightly worse on average across folds.</figcaption>
+</figure>
+<div class="tablewrap"><table>
+<caption>One client-grouped split (6 held-out clients, 1,260 pages). Same split and metric for every model.</caption>
+<thead><tr><th>Model</th><th>MAE</th><th>R²</th><th>Spearman</th></tr></thead>
+<tbody>
+<tr><td>Baseline 1: global median</td><td>0.2609</td><td>−0.112</td><td>n/a (constant guess)</td></tr>
+<tr><td>Baseline 2: position-tier median</td><td>0.2517</td><td>−0.068</td><td>0.339</td></tr>
+<tr class="best"><td>Decision Tree</td><td>0.2514</td><td>0.071</td><td>0.369</td></tr>
+</tbody></table></div>
+<div class="tablewrap"><table>
+<caption>5-fold client-grouped cross-validation, mean (± standard deviation across folds).</caption>
+<thead><tr><th>Model</th><th>MAE</th><th>R²</th><th>Spearman</th></tr></thead>
+<tbody>
+<tr><td>Baseline 1: global median</td><td>0.2019 ± 0.0323</td><td>−0.095</td><td>n/a</td></tr>
+<tr class="best"><td>Baseline 2: position-tier median</td><td>0.1949 ± 0.0293</td><td>−0.036</td><td>0.354 ± 0.040</td></tr>
+<tr><td>Decision Tree</td><td>0.2088 ± 0.0151</td><td>0.026</td><td>0.366 ± 0.052</td></tr>
+</tbody></table></div>
+<p>The tree’s slightly better R² and Spearman scores are smaller than the fold-to-fold noise, while its error is not lower. Every R² is close to zero, meaning these features explain very little of the page-to-page variation in CTR. The honest reading is that a transparent position rule is about as good as this model for deciding what to review, so the ranked queue uses the rule.</p>
+<h3>What the tree learned</h3>
+<figure class="card">
+<svg viewBox="0 0 640 238" role="img" aria-label="Horizontal bar chart of Decision Tree feature importance: average position 0.80, a flag for missing character count 0.12, search volume 0.05, word count 0.02, a flag for missing word count 0.002." class="chart">
+<line x1="210.0" x2="210.0" y1="8" y2="208" class="grid"/>
+<text x="210.0" y="226" class="tick" text-anchor="middle">0</text>
+<line x1="300.0" x2="300.0" y1="8" y2="208" class="grid"/>
+<text x="300.0" y="226" class="tick" text-anchor="middle">0.25</text>
+<line x1="390.0" x2="390.0" y1="8" y2="208" class="grid"/>
+<text x="390.0" y="226" class="tick" text-anchor="middle">0.5</text>
+<line x1="480.0" x2="480.0" y1="8" y2="208" class="grid"/>
+<text x="480.0" y="226" class="tick" text-anchor="middle">0.75</text>
+<line x1="570.0" x2="570.0" y1="8" y2="208" class="grid"/>
+<text x="570.0" y="226" class="tick" text-anchor="middle">1</text>
+<text x="200" y="31.0" class="lab" text-anchor="end">Average position</text>
+<rect x="210" y="14" width="288.4" height="26" rx="3" class="bar hl"/>
+<text x="506.4" y="31.0" class="val">0.801</text>
+<text x="200" y="71.0" class="lab" text-anchor="end">Flag: character count missing</text>
+<rect x="210" y="54" width="44.3" height="26" rx="3" class="bar"/>
+<text x="262.3" y="71.0" class="val">0.123</text>
+<text x="200" y="111.0" class="lab" text-anchor="end">Search volume</text>
+<rect x="210" y="94" width="19.4" height="26" rx="3" class="bar"/>
+<text x="237.4" y="111.0" class="val">0.054</text>
+<text x="200" y="151.0" class="lab" text-anchor="end">Word count</text>
+<rect x="210" y="134" width="7.6" height="26" rx="3" class="bar"/>
+<text x="225.6" y="151.0" class="val">0.021</text>
+<text x="200" y="191.0" class="lab" text-anchor="end">Flag: word count missing</text>
+<rect x="210" y="174" width="0.7" height="26" rx="3" class="bar"/>
+<text x="218.7" y="191.0" class="val">0.002</text>
+</svg>
+<figcaption><strong>Figure 3.</strong> Decision Tree feature importance. Position carries most of the signal. The second bar is a “was this value missing?” flag; it reflects how data were collected for different content types, not that longer or shorter articles earn more clicks.</figcaption>
+</figure>
+<h3>The ranked review queue</h3>
+<p>Ranking all 16,726 pages by missed clicks produces a concentrated queue: a small number of high-impression pages account for much of the total gap.</p>
+<figure class="card">
+<svg viewBox="0 0 640 158" role="img" aria-label="Horizontal bar chart showing the share of all estimated missed clicks held by the top 100 pages (26.4 percent), top 500 pages (54.3 percent) and top 1000 pages (68.3 percent)." class="chart">
+<line x1="230.0" x2="230.0" y1="8" y2="128" class="grid"/>
+<text x="230.0" y="146" class="tick" text-anchor="middle">0</text>
+<line x1="315.0" x2="315.0" y1="8" y2="128" class="grid"/>
+<text x="315.0" y="146" class="tick" text-anchor="middle">25</text>
+<line x1="400.0" x2="400.0" y1="8" y2="128" class="grid"/>
+<text x="400.0" y="146" class="tick" text-anchor="middle">50</text>
+<line x1="485.0" x2="485.0" y1="8" y2="128" class="grid"/>
+<text x="485.0" y="146" class="tick" text-anchor="middle">75</text>
+<line x1="570.0" x2="570.0" y1="8" y2="128" class="grid"/>
+<text x="570.0" y="146" class="tick" text-anchor="middle">100</text>
+<text x="220" y="31.0" class="lab" text-anchor="end">Top 100 pages (0.6% of pages)</text>
+<rect x="230" y="14" width="89.8" height="26" rx="3" class="bar"/>
+<text x="327.8" y="31.0" class="val">26.4%</text>
+<text x="220" y="71.0" class="lab" text-anchor="end">Top 500 pages (3.0%)</text>
+<rect x="230" y="54" width="184.6" height="26" rx="3" class="bar"/>
+<text x="422.6" y="71.0" class="val">54.3%</text>
+<text x="220" y="111.0" class="lab" text-anchor="end">Top 1,000 pages (6.0%)</text>
+<rect x="230" y="94" width="232.2" height="26" rx="3" class="bar"/>
+<text x="470.2" y="111.0" class="val">68.3%</text>
+</svg>
+<figcaption><strong>Figure 4.</strong> Share of all estimated missed clicks held by the highest-ranked pages. “Missed clicks” compares a page with the typical page in its position group; it is a prioritization number, not a forecast.</figcaption>
+</figure>
+<p>The top 100 pages come from 13 clients, and one client supplies 56% of them, so the queue should be balanced across clients before use.</p>
+<div class="tablewrap"><table>
+<caption>The five highest-ranked pages (identifiers removed).</caption>
+<thead><tr><th>Rank</th><th>Avg. position</th><th>Impressions (90d)</th><th>Clicks</th><th>CTR</th><th>Expected CTR</th><th>Missed clicks</th><th>Suggested action</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>7.3</td><td>295,097</td><td>154</td><td>0.05%</td><td>0.24%</td><td>554</td><td style="text-align:left">Improve on-page engagement</td></tr>
+<tr><td>2</td><td>4.2</td><td>517,715</td><td>741</td><td>0.14%</td><td>0.24%</td><td>502</td><td style="text-align:left">Monitor</td></tr>
+<tr><td>3</td><td>9.7</td><td>208,678</td><td>0</td><td>0.00%</td><td>0.24%</td><td>501</td><td style="text-align:left">Monitor (too little session data)</td></tr>
+<tr><td>4</td><td>2.3</td><td>272,144</td><td>75</td><td>0.03%</td><td>0.20%</td><td>469</td><td style="text-align:left">Review title / meta description</td></tr>
+<tr><td>5</td><td>7.8</td><td>223,271</td><td>70</td><td>0.03%</td><td>0.24%</td><td>466</td><td style="text-align:left">Review title / meta description</td></tr>
+</tbody></table></div>
+<figure class="card">
+<svg viewBox="0 0 640 238" role="img" aria-label="Horizontal bar chart of suggested actions among the top 100 queue pages: improve on-page engagement 42, review title and meta description 38, monitor 12, monitor because of too little session data 5, review intent match and snippet 3." class="chart">
+<line x1="250.0" x2="250.0" y1="8" y2="208" class="grid"/>
+<text x="250.0" y="226" class="tick" text-anchor="middle">0</text>
+<line x1="330.0" x2="330.0" y1="8" y2="208" class="grid"/>
+<text x="330.0" y="226" class="tick" text-anchor="middle">12.5</text>
+<line x1="410.0" x2="410.0" y1="8" y2="208" class="grid"/>
+<text x="410.0" y="226" class="tick" text-anchor="middle">25</text>
+<line x1="490.0" x2="490.0" y1="8" y2="208" class="grid"/>
+<text x="490.0" y="226" class="tick" text-anchor="middle">37.5</text>
+<line x1="570.0" x2="570.0" y1="8" y2="208" class="grid"/>
+<text x="570.0" y="226" class="tick" text-anchor="middle">50</text>
+<text x="240" y="31.0" class="lab" text-anchor="end">Improve on-page engagement</text>
+<rect x="250" y="14" width="268.8" height="26" rx="3" class="bar hl"/>
+<text x="526.8" y="31.0" class="val">42</text>
+<text x="240" y="71.0" class="lab" text-anchor="end">Review title / meta description</text>
+<rect x="250" y="54" width="243.2" height="26" rx="3" class="bar hl"/>
+<text x="501.2" y="71.0" class="val">38</text>
+<text x="240" y="111.0" class="lab" text-anchor="end">Monitor</text>
+<rect x="250" y="94" width="76.8" height="26" rx="3" class="bar"/>
+<text x="334.8" y="111.0" class="val">12</text>
+<text x="240" y="151.0" class="lab" text-anchor="end">Monitor (too little session data)</text>
+<rect x="250" y="134" width="32.0" height="26" rx="3" class="bar"/>
+<text x="290.0" y="151.0" class="val">5</text>
+<text x="240" y="191.0" class="lab" text-anchor="end">Review intent match / snippet</text>
+<rect x="250" y="174" width="19.2" height="26" rx="3" class="bar"/>
+<text x="277.2" y="191.0" class="val">3</text>
+</svg>
+<figcaption><strong>Figure 5.</strong> Suggested actions among the top 100 queue pages. Reason codes: high impressions, CTR below half of the group’s expected CTR, page-one position, weak engagement (lower half among pages with at least 30 sessions), and low session evidence.</figcaption>
+</figure>
+<h3>Do the gaps persist?</h3>
+<p>As a leakage-safe sanity check, pages were compared with their position group separately in the older and newer 30-day windows (10,944 pages with at least 300 impressions in both). The two gaps are correlated (Spearman 0.60), and 83% of the worst-performing 10% in the older window still sit above the median gap in the newer one. The gaps are therefore not just random noise. This is still an observational pattern.</p>
+</section>
+
+<section id="limits">
+<h2>5. Limitations and honest framing</h2>
+<div class="callout"><p><strong>How to read this paper</strong>All findings are observed, directional decision-support. They show where clicks were lower than comparable pages, not why, and not what would happen after a change.</p></div>
+<ul>
+<li><strong>Observational only.</strong> One 90-day slice of 30,000 pages. Nothing here shows that rewriting a page improves CTR.</li>
+<li><strong>Low-CTR slice.</strong> CTR is low overall, and top-3 CTR here is far below the figure in the dataset’s own documentation, so these group values should not be generalized.</li>
+<li><strong>Sensitive to choices.</strong> Results depend on the 500-impression floor and on the four position groups.</li>
+<li><strong>Approximate positions.</strong> <code>avg_position</code> is a 90-day average, so position groups are approximate.</li>
+<li><strong>Systematic missing data.</strong> Keyword and length fields are missing along content-type lines, so missingness itself can carry information.</li>
+<li><strong>Low CTR has many causes.</strong> Changes to the search results page, intent mismatch or AI answers can reduce clicks, not only a weak title or description.</li>
+<li><strong>Concentrated queue.</strong> One client supplies about 56% of the top 100.</li>
+<li><strong>Weak model signal.</strong> The Decision Tree did not reliably beat a simple baseline, so no model-based claims are made.</li>
+<li><strong>First-pass rules.</strong> Reason-code thresholds are starting points. A high-ranked page can land on “monitor,” and thresholds should be tuned with editors.</li>
+</ul>
+</section>
+
+<section id="recs">
+<h2>6. Ranked recommendations</h2>
+<p>These are review priorities, not guaranteed improvements.</p>
+<ol class="steps">
+<li><strong>Review the top-ranked pages first:</strong> high impressions, positions 4–10, CTR far below the group’s typical CTR. The top 100 pages hold about 26% of all estimated missed clicks (top 500: 54%; top 1,000: 68%).</li>
+<li><strong>Check title, meta description and intent match</strong> for pages flagged as page-one with CTR below half of expected.</li>
+<li><strong>Review the on-page experience</strong> for pages flagged with weak engagement.</li>
+<li><strong>Monitor, don’t act,</strong> on pages with fewer than 10 sessions until there is more evidence.</li>
+<li><strong>Balance reviews across clients</strong> so one client does not dominate the queue, and tune the reason-code thresholds with the editors who use it.</li>
+</ol>
+</section>
+
+<section id="repro">
+<h2>7. Reproducibility</h2>
+<p>Everything in this paper comes from one notebook that runs top to bottom. The dataset itself is not committed to the repository, so the notebook fetches it from the public FlyRank starter repository.</p>
+<ul>
+<li>Repository: <a href="https://github.com/Gunjannn07/FlyRank1" target="_blank" rel="noopener noreferrer">github.com/Gunjannn07/FlyRank1</a></li>
+<li>Capstone notebook: <a href="https://github.com/Gunjannn07/FlyRank1/blob/main/work/notebooks/capstone.ipynb" target="_blank" rel="noopener noreferrer"><code>work/notebooks/capstone.ipynb</code></a> (all assignment notebooks are in <a href="https://github.com/Gunjannn07/FlyRank1/tree/main/work/notebooks" target="_blank" rel="noopener noreferrer"><code>work/notebooks/</code></a>)</li>
+<li>Run it in the browser: <a href="https://colab.research.google.com/github/Gunjannn07/FlyRank1/blob/main/work/notebooks/capstone.ipynb" target="_blank" rel="noopener noreferrer">open in Google Colab</a>, then choose Runtime → Run all</li>
+<li>Saved metrics: <code>work/outputs/capstone_metrics.json</code> in the repository</li>
+<li>Source data: <a href="https://github.com/flyrank-bih/flyrank-ml-internship-starter" target="_blank" rel="noopener noreferrer">FlyRank ML internship starter repository</a></li>
+</ul>
+<p>Random seed: 42 (data splits and Decision Tree). Libraries: pandas, NumPy, scikit-learn, SciPy and Matplotlib.</p>
+</section>
+
+<section id="credit">
+<h2>8. Acknowledgments and data credit</h2>
+<p>Built on the FlyRank ML Internship dataset: <a href="https://flyrank.ai" target="_blank" rel="noopener noreferrer">flyrank.ai</a>. Thank you to the FlyRank team for the dataset and the internship program behind this capstone.</p>
+<p>This work is intended for editorial research and decision-support, not for automatic action without a human review step.</p>
+</section>
+
+</main>
+<footer><div class="in">Gunjann · FlyRank ML Internship capstone · October 2026 · <a href="https://flyrank.ai" target="_blank" rel="noopener noreferrer">Data credit: flyrank.ai</a></div></footer>
+</body>
+</html>
